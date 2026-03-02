@@ -1,5 +1,4 @@
 import {
-  initSchema,
   getDefaultRentAndIncome,
   setDefaultRentAndIncome,
   getMonthOverrides,
@@ -14,13 +13,16 @@ export interface SettingsGetResponse {
   statementMonths: string[];
 }
 
-/** GET: return default rent/income and all per-month overrides. */
+/** GET: return default rent/income and all per-month overrides. Returns empty data when DB is not configured. */
 export async function GET(): Promise<Response> {
   if (!process.env.DATABASE_URL) {
-    return Response.json({ error: "DATABASE_URL not set." }, { status: 500 });
+    return Response.json({
+      defaults: { rent: null, income: null },
+      overrides: [],
+      statementMonths: [],
+    } satisfies SettingsGetResponse);
   }
   try {
-    await initSchema();
     const [defaults, overrides, statementMonths] = await Promise.all([
       getDefaultRentAndIncome(),
       getMonthOverrides(),
@@ -52,7 +54,6 @@ export async function POST(request: Request): Promise<Response> {
   }
   try {
     const body = await request.json().catch(() => ({}));
-    await initSchema();
 
     const def = body.defaults;
     if (def && (typeof def.rent !== "undefined" || typeof def.income !== "undefined")) {

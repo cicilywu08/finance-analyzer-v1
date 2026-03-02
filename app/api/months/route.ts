@@ -1,4 +1,4 @@
-import { initSchema, getStatementMonths } from "@/lib/db";
+import { getStatementMonths } from "@/lib/db";
 
 export interface MonthsGetResponse {
   months: string[];
@@ -10,7 +10,6 @@ export async function GET(): Promise<Response> {
     return Response.json({ months: [] } satisfies MonthsGetResponse);
   }
   try {
-    await initSchema();
     const months = await getStatementMonths();
     return Response.json({ months } satisfies MonthsGetResponse);
   } catch (err) {

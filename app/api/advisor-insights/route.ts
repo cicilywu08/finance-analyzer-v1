@@ -1,5 +1,4 @@
 import {
-  initSchema,
   getCategoryBreakdown,
   getRentIncomeForMonth,
   getTopMerchantsBySpend,
@@ -34,7 +33,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    await initSchema();
     const [breakdown, rentIncome, topMerchants] = await Promise.all([
       getCategoryBreakdown(year, month),
       getRentIncomeForMonth(year, month),

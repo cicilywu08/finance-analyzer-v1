@@ -37,9 +37,10 @@ export function CategorizationBlock({ yearMonth, onClassificationComplete }: Cat
 
   const fetchBreakdown = useCallback(async () => {
     if (!valid) return;
+    setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/classify?year=${year}&month=${month}`);
+      const res = await fetch(`/api/classify?year=${year}&month=${month}`, { cache: "no-store" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error ?? `Failed (${res.status})`);
@@ -98,54 +99,55 @@ export function CategorizationBlock({ yearMonth, onClassificationComplete }: Cat
   }
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={runCategorization}
-          disabled={classifying}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:bg-zinc-400"
-        >
-          {classifying ? "Running…" : "Run categorization"}
-        </button>
-        {lowConfidenceCount > 0 && (
-          <span className="text-sm text-amber-700">
-            Low confidence: {lowConfidenceCount} transaction(s)
-          </span>
+    <div className="space-y-6">
+      <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={runCategorization}
+            disabled={classifying}
+            className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+          >
+            {classifying ? "Running…" : "Run categorization"}
+          </button>
+          {lowConfidenceCount > 0 && (
+            <span className="text-sm text-amber-700 font-medium">
+              Low confidence: {lowConfidenceCount} transaction(s)
+            </span>
+          )}
+        </div>
+
+        {error && (
+          <p className="mt-4 text-sm text-red-600" role="alert">
+            {error}
+          </p>
         )}
-      </div>
 
-      {error && (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      )}
-
-      {(rent != null || income != null || totalSpend !== null || netSpendTotal !== null || totalCredits !== null) && (
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/30">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium text-zinc-800 dark:text-zinc-200">
+        {(rent != null || income != null || totalSpend !== null || netSpendTotal !== null || totalCredits !== null) && (
+        <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 p-4 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium text-gray-800">
             {income != null && <span>Income: {formatAmount(income)}</span>}
             {rent != null && <span>Rent: {formatAmount(rent)}</span>}
             {totalSpend !== null && <span>Spend: {formatAmount(totalSpend)}</span>}
             {totalCredits !== null && totalCredits < 0 && (
               <span className="text-red-600">Credits: {formatAmount(totalCredits)}</span>
             )}
-            {netSpendTotal !== null && <span className="text-zinc-500">Statement net: {formatAmount(netSpendTotal)}</span>}
+            {netSpendTotal !== null && <span className="text-gray-500">Statement net: {formatAmount(netSpendTotal)}</span>}
           </div>
           {income != null && rent != null && totalSpend !== null && (
-            <p className="mt-1.5 text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1.5 text-gray-600">
               After rent &amp; spend: Income − Rent − Spend ={" "}
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              <span className="font-medium text-gray-900">
                 {formatAmount(income - rent - totalSpend)}
               </span>
               {income > 0 && (
                 <>
                   {" "}
-                  <span className="text-zinc-500">
+                  <span className="text-gray-500">
                     (rent + spend = {((rent + totalSpend) / income * 100).toFixed(1)}% of income)
                   </span>
                   {" "}
-                  <span className="text-zinc-500">
+                  <span className="text-gray-500">
                     Saving rate: {(((income - rent - totalSpend) / income) * 100).toFixed(1)}%
                   </span>
                 </>
@@ -153,36 +155,62 @@ export function CategorizationBlock({ yearMonth, onClassificationComplete }: Cat
             </p>
           )}
         </div>
-      )}
+        )}
 
-      {loading ? (
-        <p className="text-sm text-zinc-500">Loading breakdown…</p>
-      ) : rows.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-zinc-300 text-left text-sm">
-            <thead>
-              <tr className="bg-zinc-100">
-                <th className="border-b border-zinc-300 px-3 py-2 font-medium">category</th>
-                <th className="border-b border-zinc-300 px-3 py-2 font-medium">totalAmount</th>
-                <th className="border-b border-zinc-300 px-3 py-2 font-medium">percent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b border-zinc-200">
-                  <td className="px-3 py-2">{r.category}</td>
-                  <td className={`px-3 py-2 ${parseFloat(r.total_amount) < 0 ? "text-red-600" : ""}`}>
-                    {formatAmount(r.total_amount)}
-                  </td>
-                  <td className="px-3 py-2">{r.percent.toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-sm text-zinc-500">No transactions for this month, or run categorization first.</p>
-      )}
+        {loading ? (
+          <p className="mt-4 text-sm text-gray-500">Loading breakdown…</p>
+        ) : rows.length > 0 ? (
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-6">
+              <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-sm font-medium text-gray-600">Category Summary</h3>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                      CATEGORY
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
+                      TOTAL AMOUNT
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
+                      PERCENT
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {rows.map((r, i) => (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-900">{r.category}</td>
+                      <td className={`px-4 py-3 text-sm text-right font-medium ${parseFloat(r.total_amount) < 0 ? "text-red-600" : "text-gray-900"}`}>
+                        {parseFloat(r.total_amount) < 0 ? "-$" + formatAmount(-parseFloat(r.total_amount)) : "$" + formatAmount(r.total_amount)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                        {r.percent.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                  {rows.length > 0 && totalSpend != null && (
+                    <tr className="bg-gray-50 font-semibold border-t-2 border-gray-300">
+                      <td className="px-4 py-3 text-sm text-gray-900">Total</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                        ${formatAmount(totalSpend)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 text-right">100.0%</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">No transactions for this month, or run categorization first.</p>
+        )}
+      </div>
     </div>
   );
 }

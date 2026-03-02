@@ -5,7 +5,6 @@ import {
   getCategoryBreakdown,
   getMerchantCached,
   upsertMerchantCache,
-  initSchema,
   correctCardPaymentDescriptions,
   getRentIncomeForMonth,
 } from "@/lib/db";
@@ -52,7 +51,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    await initSchema();
     const { count: corrected, merchantRaws } = await correctCardPaymentDescriptions(year, month);
     if (corrected > 0) {
       console.log("[classify POST] Corrected", corrected, "card-payment description(s) to Card Payment");
@@ -144,7 +142,6 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    await initSchema();
     const [breakdown, rentIncome] = await Promise.all([
       getCategoryBreakdown(year, month),
       getRentIncomeForMonth(year, month),

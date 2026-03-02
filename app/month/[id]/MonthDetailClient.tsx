@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CategorizationBlock } from "./CategorizationBlock";
 import { FinancialInsights } from "./FinancialInsights";
 import { TransactionList } from "./TransactionList";
 
@@ -13,13 +12,15 @@ export function MonthDetailClient({ yearMonth }: MonthDetailClientProps) {
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
 
   return (
-    <>
-      <CategorizationBlock
+    <div className="space-y-6">
+      <FinancialInsights
         yearMonth={yearMonth}
+        refreshKey={dataRefreshKey}
         onClassificationComplete={() => setDataRefreshKey((k) => k + 1)}
       />
-      <FinancialInsights yearMonth={yearMonth} refreshKey={dataRefreshKey} />
-      <TransactionList yearMonth={yearMonth} refreshKey={dataRefreshKey} />
-    </>
+      <div id="transactions">
+        <TransactionList yearMonth={yearMonth} refreshKey={dataRefreshKey} />
+      </div>
+    </div>
   );
 }

@@ -24,8 +24,8 @@ export default function SettingsPage() {
     setMessage(null);
     try {
       const res = await fetch("/api/settings");
-      if (!res.ok) throw new Error("Failed to load");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load");
       setDefaults({
         rent: data.defaults?.rent ?? null,
         income: data.defaults?.income ?? null,
@@ -105,15 +105,17 @@ export default function SettingsPage() {
     <div className="min-h-screen py-6">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <p className="mt-1 text-zinc-600">
-        Set default rent and income. Override per month if needed.
+        Set default monthly rent and monthly after-tax income. You can optionally override each month below.
       </p>
 
       <section className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/30">
         <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Defaults</h2>
-        <p className="mt-0.5 text-xs text-zinc-500">Used for every month unless you set an override below.</p>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          Monthly rent and monthly after-tax income used for every month unless you set an override below.
+        </p>
         <div className="mt-3 flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2">
-            <span className="text-sm text-zinc-600">Rent</span>
+            <span className="text-sm text-zinc-600">Monthly rent</span>
             <input
               type="number"
               step="0.01"
@@ -125,7 +127,7 @@ export default function SettingsPage() {
             />
           </label>
           <label className="flex items-center gap-2">
-            <span className="text-sm text-zinc-600">Income</span>
+            <span className="text-sm text-zinc-600">Monthly after-tax income</span>
             <input
               type="number"
               step="0.01"
@@ -141,8 +143,10 @@ export default function SettingsPage() {
 
       {statementMonths.length > 0 && (
         <section className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/30">
-          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Per-month overrides</h2>
-          <p className="mt-0.5 text-xs text-zinc-500">Leave blank to use defaults. Only months with data are listed.</p>
+          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Per-month overrides (optional)</h2>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Change rent or income for a specific month if needed. Leave blank to use the defaults above.
+          </p>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>

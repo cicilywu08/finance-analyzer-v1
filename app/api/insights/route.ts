@@ -1,5 +1,4 @@
 import {
-  initSchema,
   getCategoryBreakdown,
   getRentIncomeForMonth,
   getStatementMonths,
@@ -40,7 +39,7 @@ export interface InsightsResponse {
   };
   spikes: Array<{ category: string; current: number; rollingAvg: number; percentIncrease: number }>;
   recurring: Array<{ merchant_raw: string; months: number }>;
-  topMerchants: Array<{ merchant_raw: string; total_spend: number }>;
+  topMerchants: Array<{ merchant_raw: string; total_spend: number; category: string }>;
 }
 
 /** GET: financial indicators & insights for a statement month. Query: year, month. */
@@ -59,7 +58,6 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    await initSchema();
     const statementMonths = await getStatementMonths();
     const currentKey = `${year}-${String(month).padStart(2, "0")}`;
     const currentIndex = statementMonths.indexOf(currentKey);

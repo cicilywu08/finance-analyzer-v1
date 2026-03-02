@@ -41,6 +41,15 @@ function getDuplicateMonths(results: UploadResultItem[]): string[] {
     .map(([month]) => month);
 }
 
+/** Unique detectedYearMonth from results that have transactionCount > 0. */
+function getMonthsWithTransactions(results: UploadResultItem[]): string[] {
+  const set = new Set<string>();
+  for (const r of results) {
+    if (r.detectedYearMonth && r.transactionCount > 0) set.add(r.detectedYearMonth);
+  }
+  return [...set].sort();
+}
+
 function FileResult({
   row,
   index,
@@ -54,7 +63,7 @@ function FileResult({
   const hasPreview = row.previewTransactions.length > 0;
 
   return (
-    <div className="border border-zinc-200 rounded p-4 space-y-3">
+    <div className="border border-zinc-200 rounded-lg p-4 space-y-3 bg-white">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-medium">{row.filename}</span>
         <span className="text-zinc-500">{row.detectedYearMonth ?? "—"}</span>
@@ -140,33 +149,56 @@ function FileResult({
   );
 }
 
-/** Unique detectedYearMonth from results that have transactionCount > 0. */
-function getMonthsWithTransactions(results: UploadResultItem[]): string[] {
-  const set = new Set<string>();
-  for (const r of results) {
-    if (r.detectedYearMonth && r.transactionCount > 0) set.add(r.detectedYearMonth);
-  }
-  return [...set].sort();
-}
-
 export default function UploadPage() {
   const router = useRouter();
   const [files, setFiles] = useState<FileList | null>(null);
   const [results, setResults] = useState<UploadResultItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [removedIndices, setRemovedIndices] = useState<Set<number>>(new Set());
+  const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fileCount = files?.length ?? 0;
   const overLimit = fileCount > MAX_FILES;
   const duplicateMonths = results ? getDuplicateMonths(results) : [];
-  const monthsWithTxns = results ? getMonthsWithTransactions(results) : [];
+  const successfulResults = results ? results.filter((r, i) => r.status === "ok" && !removedIndices.has(i)) : [];
+  const monthsWithTxns = results ? getMonthsWithTransactions(results.filter((_, i) => !removedIndices.has(i))) : [];
+  const showUploadedCard = successfulResults.length > 0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files;
     setFiles(selected ?? null);
     setResults(null);
     setSubmitError(null);
+    setRemovedIndices(new Set());
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const dropped = e.dataTransfer.files;
+    if (!dropped?.length) return;
+    setFiles(dropped);
+    setResults(null);
+    setSubmitError(null);
+    setRemovedIndices(new Set());
+    if (inputRef.current) {
+      const dt = new DataTransfer();
+      for (let i = 0; i < dropped.length; i++) dt.items.add(dropped[i]);
+      inputRef.current.files = dt.files;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,6 +209,7 @@ export default function UploadPage() {
     setLoading(true);
     setSubmitError(null);
     setResults(null);
+    setRemovedIndices(new Set());
 
     try {
       const formData = new FormData();
@@ -207,80 +240,189 @@ export default function UploadPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-2xl font-semibold">Upload statements</h1>
-      <p className="mt-2 text-zinc-600">
-        Upload 1–12 Chase credit card statement PDFs.
-      </p>
+  const removeUploadedFile = (index: number) => {
+    setRemovedIndices((prev) => new Set(prev).add(index));
+  };
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="application/pdf"
-            multiple
-            onChange={handleFileChange}
-            className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded file:border-0 file:bg-zinc-200 file:px-3 file:py-2 file:text-sm file:font-medium"
-          />
-          {fileCount > 0 && (
-            <p className="mt-2 text-sm text-zinc-600">
-              Selected: {fileCount} file{fileCount !== 1 ? "s" : ""}.
-              {overLimit && (
-                <span className="ml-2 font-medium text-red-600">
-                  Maximum {MAX_FILES} files. Please remove {fileCount - MAX_FILES}.
-                </span>
-              )}
-            </p>
-          )}
+  const goToDashboard = () => {
+    if (monthsWithTxns.length === 1) {
+      router.push(`/month/${monthsWithTxns[0]}`);
+    } else {
+      router.push("/months");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-2xl">
+        {/* Header — matches Figma upload-screen */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            Chase Statement Analyzer
+          </h1>
+          <p className="text-gray-600">Upload your monthly statements to get started</p>
         </div>
 
-        <button
-          type="submit"
-          disabled={!fileCount || overLimit || loading}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:bg-zinc-400"
-        >
-          {loading ? "Uploading…" : "Upload"}
-        </button>
-      </form>
+        {/* Upload zone — matches Figma */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={`
+              relative rounded-3xl p-12 border-2 border-dashed transition-all duration-300
+              backdrop-blur-lg bg-white/60
+              ${dragActive ? "border-blue-500 bg-blue-50/60 scale-[1.02]" : "border-gray-300 hover:border-gray-400"}
+            `}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              id="file-upload"
+              accept=".pdf"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              aria-label="Select Chase statement PDFs"
+            />
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer flex flex-col items-center justify-center"
+            >
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-6">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                Drop your Chase statements here
+              </h3>
+              <p className="text-gray-600 mb-4">or click to browse</p>
+              <p className="text-sm text-gray-500">Upload up to 12 PDFs (text-based only)</p>
+            </label>
+          </div>
 
-      {submitError && (
-        <p className="mt-4 text-sm text-red-600" role="alert">
-          {submitError}
-        </p>
-      )}
-
-      {duplicateMonths.length > 0 && (
-        <p className="mt-4 text-sm font-medium text-amber-700" role="alert">
-          Duplicate month(s) in this batch: {duplicateMonths.join(", ")}. Consider overwriting or skipping.
-        </p>
-      )}
-
-      {results && results.length > 0 && (
-        <div className="mt-6 space-y-4">
-          {monthsWithTxns.length > 1 && (
-            <div className="rounded border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-medium text-zinc-700 mb-2">Go to month</p>
-              <ul className="flex flex-wrap gap-2">
-                {monthsWithTxns.map((ym) => (
-                  <li key={ym}>
-                    <Link
-                      href={`/month/${ym}`}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      {ym}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          {fileCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <p className="text-sm text-gray-600">
+                {fileCount} file{fileCount !== 1 ? "s" : ""} selected
+                {overLimit && (
+                  <span className="ml-2 font-medium text-red-600">
+                    · Max {MAX_FILES} files
+                  </span>
+                )}
+              </p>
+              <button
+                type="submit"
+                disabled={overLimit || loading}
+                className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? "Uploading…" : `Upload ${fileCount} file${fileCount !== 1 ? "s" : ""}`}
+              </button>
             </div>
           )}
-          {results.map((row, i) => (
-            <FileResult key={i} row={row} index={i} />
-          ))}
-        </div>
-      )}
+
+          {submitError && (
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3" role="alert">
+              <p className="text-sm text-red-700 font-medium">{submitError}</p>
+            </div>
+          )}
+
+          {duplicateMonths.length > 0 && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3" role="alert">
+              <p className="text-sm font-medium text-amber-800">
+                Duplicate month(s): {duplicateMonths.join(", ")}. Consider overwriting or skipping.
+              </p>
+            </div>
+          )}
+        </form>
+
+        {/* Uploaded Files card — only when at least one successful upload (matches Figma file list) */}
+        {showUploadedCard && (
+          <div className="mt-6 rounded-2xl backdrop-blur-lg bg-white/70 p-6 shadow-lg">
+            <h3 className="font-semibold mb-4">Uploaded Files ({successfulResults.length})</h3>
+            <div className="space-y-3">
+              {results!.map((row, i) => {
+                if (row.status !== "ok" || removedIndices.has(i)) return null;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/80 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{row.filename}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
+                            {row.detectedYearMonth ?? "—"}
+                          </span>
+                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeUploadedFile(i)}
+                      className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                      aria-label={`Remove ${row.filename}`}
+                    >
+                      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={goToDashboard}
+              className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl h-12 font-semibold transition-all"
+            >
+              Continue to Dashboard ({successfulResults.length} {successfulResults.length === 1 ? "file" : "files"})
+            </button>
+          </div>
+        )}
+
+        {/* Error details and month links when we have successful uploads */}
+        {results && results.length > 0 && (
+          <div className="mt-8 space-y-4">
+            {results.some((r) => r.status === "error") && (
+              <>
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  Some files could not be processed. Successful uploads are shown above.
+                </p>
+                {results.filter((r) => r.status === "error").map((row, i) => (
+                  <FileResult key={`${row.filename}-${i}`} row={row} index={i} />
+                ))}
+              </>
+            )}
+            {monthsWithTxns.length > 1 && showUploadedCard && (
+              <div className="rounded-xl border border-gray-200 bg-white/80 p-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Go to month</p>
+                <ul className="flex flex-wrap gap-2">
+                  {monthsWithTxns.map((ym) => (
+                    <li key={ym}>
+                      <Link
+                        href={`/month/${ym}`}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        {ym}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

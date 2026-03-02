@@ -17,7 +17,7 @@ export interface AdvisorInput {
   essentialsBreakdown: Array<{ category: string; amount: number }>;
   discretionaryBreakdown: Array<{ category: string; amount: number }>;
   otherBreakdown: Array<{ category: string; amount: number }>;
-  topMerchants: Array<{ merchant_raw: string; total_spend: number }>;
+  topMerchants: Array<{ merchant_raw: string; total_spend: number; category: string }>;
 }
 
 function formatBreakdown(items: Array<{ category: string; amount: number }>): string {
@@ -25,9 +25,9 @@ function formatBreakdown(items: Array<{ category: string; amount: number }>): st
   return items.map((r) => `${r.category}: ${r.amount.toFixed(2)}`).join("\n");
 }
 
-function formatTopMerchants(items: Array<{ merchant_raw: string; total_spend: number }>): string {
+function formatTopMerchants(items: Array<{ merchant_raw: string; total_spend: number; category?: string }>): string {
   if (items.length === 0) return "None";
-  return items.map((r) => `${r.merchant_raw}: ${r.total_spend.toFixed(2)}`).join("\n");
+  return items.map((r) => `${r.merchant_raw}: ${r.total_spend.toFixed(2)}${r.category ? ` (${r.category})` : ""}`).join("\n");
 }
 
 export function buildAdvisorUserPrompt(input: AdvisorInput): string {

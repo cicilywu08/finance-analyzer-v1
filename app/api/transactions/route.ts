@@ -1,4 +1,4 @@
-import { initSchema, getTransactionsByMonth } from "@/lib/db";
+import { getTransactionsByMonth } from "@/lib/db";
 
 export interface TransactionRow {
   id: number;
@@ -34,7 +34,6 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    await initSchema();
     const rows = await getTransactionsByMonth(year, month);
     const transactions: TransactionRow[] = rows.map((r) => ({
       id: r.id,

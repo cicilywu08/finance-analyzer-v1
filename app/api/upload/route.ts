@@ -1,6 +1,6 @@
 console.log("Has OpenAI key:", !!process.env.OPENAI_API_KEY)
 import { extractPdfText, detectStatementPeriod, parseChaseTransactions } from "@/lib/parser";
-import { initSchema, saveTransactions } from "@/lib/db";
+import { saveTransactions } from "@/lib/db";
 
 const MAX_FILES = 12;
 const HEADER_TEXT_LENGTH = 4000;
@@ -103,7 +103,6 @@ export async function POST(request: Request): Promise<Response> {
           if (dbWriteEnabled) {
             try {
               const [y, m] = detectedYearMonth.split("-").map(Number);
-              await initSchema();
               await saveTransactions(y, m, parseResult.transactions);
             } catch (dbErr) {
               console.error("[upload] Failed to store transactions", dbErr);

@@ -1,22 +1,30 @@
 /**
- * Postgres integration. V1: connection pool, transactions table, save/query.
- * Set DATABASE_URL in env (e.g. postgres://user:pass@host:5432/dbname).
+ * Postgres integration. Single global pool, stable for Next.js + DigitalOcean.
+ * Set DATABASE_URL in env. Schema is inited once at server startup (instrumentation).
  */
 
 import { Pool } from "pg";
 import type { ParsedTransaction } from "./parser";
 
-let pool: Pool | null = null;
+const globalForDb = globalThis as unknown as { _pool: Pool | null };
 
 function getPool(): Pool {
-  if (!pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-      throw new Error("DATABASE_URL is not set");
-    }
-    pool = new Pool({ connectionString: url });
+  if (globalForDb._pool) {
+    return globalForDb._pool;
   }
-  return pool;
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  const useSsl = url.includes("sslmode=");
+  globalForDb._pool = new Pool({
+    connectionString: url,
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
+  return globalForDb._pool;
 }
 
 export async function getDb(): Promise<Pool> {
@@ -75,6 +83,16 @@ CREATE TABLE IF NOT EXISTS month_overrides (
 );
 `;
 
+const CREATE_USERS = `
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+`;
+
 export async function initSchema(): Promise<void> {
   const client = await getPool().connect();
   try {
@@ -91,9 +109,26 @@ export async function initSchema(): Promise<void> {
     await client.query(CREATE_MERCHANT_CACHE);
     await client.query(CREATE_SETTINGS_DEFAULTS);
     await client.query(CREATE_MONTH_OVERRIDES);
+    await client.query(CREATE_USERS);
     await client.query(
       "INSERT INTO settings_defaults (id, default_rent, default_income) SELECT 1, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM settings_defaults WHERE id = 1)"
     );
+    // Seed: STARRY.COM (home internet) → Bills & Utilities
+    await client.query(
+      `UPDATE transactions SET category = 'Bills & Utilities', confidence = 1, category_source = 'seed'
+       WHERE LOWER(TRIM(merchant_raw)) = 'starry.com starry.com ma'`
+    );
+    const starryRows = await client.query<{ merchant_raw: string }>(
+      `SELECT DISTINCT merchant_raw FROM transactions WHERE LOWER(TRIM(merchant_raw)) = 'starry.com starry.com ma'`
+    );
+    for (const row of starryRows.rows) {
+      await client.query(
+        `INSERT INTO merchant_category_cache (merchant_raw, category, confidence, source, updated_at)
+         VALUES ($1, 'Bills & Utilities', 1, 'seed', NOW())
+         ON CONFLICT (merchant_raw) DO UPDATE SET category = 'Bills & Utilities', confidence = 1, source = 'seed', updated_at = NOW()`,
+        [row.merchant_raw]
+      );
+    }
   } finally {
     client.release();
   }
@@ -497,20 +532,71 @@ export async function getRecurringMerchants(
   return res.rows.map((r) => ({ merchant_raw: r.merchant_raw, months: parseInt(r.cnt, 10) }));
 }
 
-/** Top N merchants by total spend (sum of positive amounts) for the month. Excludes Card Payment. */
+/** Top N merchants by total spend (sum of positive amounts) for the month. Excludes Card Payment. Returns primary category (most spend) per merchant. */
 export async function getTopMerchantsBySpend(
   statementYear: number,
   statementMonth: number,
   limit: number = 5
-): Promise<Array<{ merchant_raw: string; total_spend: number }>> {
-  const res = await getPool().query<{ merchant_raw: string; total: string }>(
-    `SELECT merchant_raw, SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END)::TEXT AS total
-     FROM transactions
-     WHERE statement_year = $1 AND statement_month = $2 AND (category IS NULL OR category != 'Card Payment')
-     GROUP BY merchant_raw
-     ORDER BY SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) DESC
-     LIMIT $3`,
+): Promise<Array<{ merchant_raw: string; total_spend: number; category: string }>> {
+  const res = await getPool().query<{ merchant_raw: string; total: string; category: string | null }>(
+    `WITH top_merchants AS (
+       SELECT merchant_raw, SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END)::TEXT AS total
+       FROM transactions
+       WHERE statement_year = $1 AND statement_month = $2 AND (category IS NULL OR category != 'Card Payment')
+       GROUP BY merchant_raw
+       ORDER BY SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) DESC
+       LIMIT $3
+     ),
+     cat_sums AS (
+       SELECT t.merchant_raw, t.category, SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) AS cat_total
+       FROM transactions t
+       INNER JOIN top_merchants tm ON tm.merchant_raw = t.merchant_raw
+       WHERE t.statement_year = $1 AND t.statement_month = $2 AND (t.category IS NOT NULL AND t.category != 'Card Payment')
+       GROUP BY t.merchant_raw, t.category
+     ),
+     primary_cat AS (
+       SELECT DISTINCT ON (merchant_raw) merchant_raw, category
+       FROM cat_sums
+       ORDER BY merchant_raw, cat_total DESC
+     )
+     SELECT tm.merchant_raw, tm.total, COALESCE(pc.category, 'Uncategorized') AS category
+     FROM top_merchants tm
+     LEFT JOIN primary_cat pc ON pc.merchant_raw = tm.merchant_raw
+     ORDER BY tm.total::NUMERIC DESC`,
     [statementYear, statementMonth, limit]
   );
-  return res.rows.map((r) => ({ merchant_raw: r.merchant_raw, total_spend: parseFloat(r.total) }));
+  return res.rows.map((r) => ({
+    merchant_raw: r.merchant_raw,
+    total_spend: parseFloat(r.total),
+    category: r.category ?? "Uncategorized",
+  }));
+}
+
+// --- Auth: users table ---
+
+export interface UserRow {
+  id: number;
+  email: string;
+  password_hash: string;
+  name: string | null;
+}
+
+export async function getUserByEmail(email: string): Promise<UserRow | null> {
+  const res = await getPool().query<UserRow>(
+    "SELECT id, email, password_hash, name FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))",
+    [email]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function createUser(
+  email: string,
+  passwordHash: string,
+  name?: string | null
+): Promise<UserRow> {
+  const res = await getPool().query<UserRow>(
+    "INSERT INTO users (email, password_hash, name) VALUES (LOWER(TRIM($1)), $2, $3) RETURNING id, email, password_hash, name",
+    [email, passwordHash, name ?? null]
+  );
+  return res.rows[0];
 }
