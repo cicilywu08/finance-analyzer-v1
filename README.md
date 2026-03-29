@@ -1,8 +1,10 @@
 # Finance Analyzer
 
-Run this on **your own computer**. Upload credit-card PDFs (Chase, Bank of America, Amex), see spending by month, and optionally use **your** OpenAI key for categories and insights. Your data stays on your machine.
+Run this on **your own computer**. Upload credit-card PDFs (Chase, Amex), see spending by month, and optionally use **your** OpenAI key for categories and insights. Your data stays on your machine.
 
 This is **not** a one-click app from an app store. Follow the steps below in order. If a step fails, jump to [If something went wrong](#if-something-went-wrong).
+
+**If you are not technical, don’t worry.** Using a project from GitHub and a terminal is a great hands-on exercise in the AI era. It’s normal not to know any of this at first; the people who built this repo learned it the same way, by following steps one at a time. If you get stuck, open this README in **Cursor**, **Claude Code**, or another AI assistant, paste the error message, and ask it to walk you through that step on *your* computer. You’ve got this :)
 
 ---
 
@@ -10,7 +12,7 @@ This is **not** a one-click app from an app store. Follow the steps below in ord
 
 Do these in order. Skip nothing unless the step says “optional.”
 
-### Step 1 — Install Node.js (runs the app)
+### Step 1: Install Node.js (runs the app)
 
 1. Open **[https://nodejs.org](https://nodejs.org)** in your browser.
 2. Download the **LTS** version (recommended for most users).
@@ -25,7 +27,7 @@ Do these in order. Skip nothing unless the step says “optional.”
 
 ---
 
-### Step 2 — Install PostgreSQL (stores your data)
+### Step 2: Install PostgreSQL (stores your data)
 
 PostgreSQL is a small database program. The app uses it to remember your transactions after you close the browser.
 
@@ -35,29 +37,29 @@ PostgreSQL is a small database program. The app uses it to remember your transac
    - **Windows:** Use the guided installer. When it asks for a **password** for the database superuser (often named `postgres`), **type a password you will remember and write it down**. You will need it in Step 7.
    - **Mac:** You can use the same download page or **[Postgres.app](https://postgresapp.com/)**. If an app asks you to start the server, start it once so it runs in the background.
 
-4. Finish the installation. You do **not** need to open a special window every day—PostgreSQL just needs to be installed and the service running (installers usually turn it on automatically).
+4. Finish the installation. You do **not** need to open a special window every day. PostgreSQL only needs to be installed with the service running (installers usually turn it on automatically).
 
 ---
 
-### Step 3 — Get this project on your computer
+### Step 3: Get this project on your computer
 
-**Option A — Git (if you use Git)**  
+**Option A: Git (if you use Git)**  
 
 ```bash
 git clone https://github.com/cicilywu08/finance-analyzer-v1.git
 cd finance-analyzer-v1
 ```
 
-**Option B — ZIP (no Git)**  
+**Option B: ZIP (no Git)**  
 
 1. On GitHub, open this repository.
-2. Click the green **Code** button → **Download ZIP**.
+2. Click the green **Code** button, then **Download ZIP**.
 3. Unzip the folder somewhere easy to find, e.g. `Documents/finance-analyzer-v1`.
-4. Remember that folder path—you need it in the next step.
+4. Remember that folder path; you need it in the next step.
 
 ---
 
-### Step 4 — Open a terminal **inside** the project folder
+### Step 4: Open a terminal **inside** the project folder
 
 The “terminal” is a text window where you type commands.
 
@@ -87,7 +89,7 @@ on Mac. You should see files like `package.json` and a folder named `app`.
 
 ---
 
-### Step 5 — Create an empty database
+### Step 5: Create an empty database
 
 The app needs a **named empty database** (like an empty drawer) to store data.
 
@@ -115,7 +117,7 @@ You can use another database name, but then use **that** same name in Step 7 ins
 
 ---
 
-### Step 6 — Create your local config file
+### Step 6: Create your local config file
 
 Still in the project folder in the terminal:
 
@@ -135,9 +137,9 @@ This creates `.env.local`. Open it in **Notepad**, **TextEdit**, or any plain te
 
 ---
 
-### Step 7 — Tell the app how to connect to PostgreSQL (`DATABASE_URL`)
+### Step 7: Tell the app how to connect to PostgreSQL (`DATABASE_URL`)
 
-Add **one line** (or edit the empty one) so the app can talk to the database you created. This is **not** a website link you open in Chrome—it is **settings text** the app reads.
+Add **one line** (or edit the empty one) so the app can talk to the database you created. This is **not** a website link you open in Chrome. It is **settings text** the app reads.
 
 Use **one** of the patterns below and replace the parts in **ALL CAPS** with your real values.
 
@@ -164,18 +166,18 @@ DATABASE_URL=postgresql://postgres:YOUR_PASSWORD_HERE@localhost:5432/finance_ana
 | Piece | What to put |
 |--------|-------------|
 | After the second `//` | Your Postgres **username** (often `postgres` on Windows, or your Mac login name) |
-| After `:` and before `@` | Your **password**, if the installer required one—otherwise skip `:` and password entirely |
+| After `:` and before `@` | Your **password**, if the installer required one; otherwise skip `:` and password entirely |
 | `localhost` | Keep this if the database is on the same computer |
 | `5432` | Keep unless you changed PostgreSQL’s port during install |
 | `finance_analyzer` | The database name from Step 5 |
 
 #### Password with special characters
 
-If the password contains `@`, `:`, `/`, `#`, or spaces, you must **encode** them for the URL (e.g. `@` → `%40`). Search the web for “URL encode password” and encode **only** the password part, then paste that into the line above.
+If the password contains `@`, `:`, `/`, `#`, or spaces, you must **encode** them for the URL (for example, `@` becomes `%40`). Search the web for “URL encode password” and encode **only** the password part, then paste that into the line above.
 
 ---
 
-### Step 8 — Turn on saving and (optional) AI
+### Step 8: Turn on saving and (optional) AI
 
 In the same `.env.local` file:
 
@@ -191,11 +193,11 @@ In the same `.env.local` file:
    OPENAI_API_KEY=sk-...your-key...
    ```
 
-Save `.env.local`. **Do not** upload this file to GitHub or share it—it contains secrets.
+Save `.env.local`. **Do not** upload this file to GitHub or share it. It contains secrets.
 
 ---
 
-### Step 9 — Install the app’s dependencies
+### Step 9: Install the app’s dependencies
 
 In the project folder:
 
@@ -207,7 +209,7 @@ Wait until it finishes (may take a few minutes the first time). If you see error
 
 ---
 
-### Step 10 — Start the app
+### Step 10: Start the app
 
 ```bash
 npm run dev
@@ -217,7 +219,7 @@ Leave this window open. When it says the server is ready, go to the next step.
 
 ---
 
-### Step 11 — Use the app in your browser
+### Step 11: Use the app in your browser
 
 1. Open your browser.
 2. Go to: **[http://localhost:3000](http://localhost:3000)**
@@ -231,7 +233,7 @@ The first successful start with `ENABLE_DB_WRITE=true` creates the needed tables
 
 ## What this app does
 
-- **Upload** PDF statements (text-based PDFs; scanned-only PDFs are not supported).
+- **Upload** PDF statements. Prefer the PDF you **download directly from your bank’s website** (usually text-based). Scanned-only PDFs or phone photos of paper statements are not supported.
 - **Browse** months, transactions, categories, and summaries.
 - **Optional AI** (with `OPENAI_API_KEY`): categorization and advisor-style text via OpenAI’s API under their terms.
 
@@ -249,9 +251,9 @@ The first successful start with `ENABLE_DB_WRITE=true` creates the needed tables
 
 ## Everyday use
 
-- **Dashboard / months** — pick a month to see details.
-- **Summary**, **FIRE**, **Rent & income** — optional views and settings.
-- **EN / 中文** — language toggle in the nav.
+- **Dashboard / months:** pick a month to see details.
+- **Summary**, **FIRE**, **Rent & income:** optional views and settings.
+- **EN / 中文:** language toggle in the nav.
 
 Start the app anytime with `npm run dev` from the project folder.
 
@@ -274,7 +276,7 @@ Default URL is still `http://localhost:3000` unless you change `PORT`.
 |----------------|-------------|
 | `node` or `npm` not found | Reinstall Node from [nodejs.org](https://nodejs.org), restart the terminal, try `node -v` again. |
 | `createdb` not found (Mac/Linux) | PostgreSQL’s `bin` folder may not be on your PATH. Use the installer’s docs, or create the database with **SQL Shell / psql** like Step 5 (Windows). |
-| Database connection errors | Check PostgreSQL is running. Re-read Step 7: username, password, and database name must match what you installed. Many local setups use **no** password—then your URL has **no** `:password` part. |
+| Database connection errors | Check PostgreSQL is running. Re-read Step 7: username, password, and database name must match what you installed. Many local setups use **no** password, so your URL has **no** `:password` part. |
 | Upload does nothing / no save | Ensure `ENABLE_DB_WRITE=true` in `.env.local` and restart `npm run dev`. |
 | AI errors | Set `OPENAI_API_KEY` and restart; check billing/API access on OpenAI’s site. |
 | Scanned PDF not supported | Download a **text-based** PDF from your bank’s website if possible. |
@@ -284,8 +286,8 @@ Default URL is still `http://localhost:3000` unless you change `PORT`.
 ## Understanding what you installed (optional read)
 
 - **GitHub** gave you **source code**, not a finished “.exe” product. **Node.js** runs that code. **PostgreSQL** holds your saved data. The **terminal** is where you run `npm install` and `npm run dev`.
-- **`DATABASE_URL`** is one configuration line so the app knows **which database on this computer** to use. It is not something you “search Google for”—you build it from your Postgres username, password (if any), and the database name `finance_analyzer` (or whatever you chose).
-- If all of this is still too much, ask someone technical for **one short session** with this README open—or use a local tech-support service. This repo does not include a double-click installer yet.
+- **`DATABASE_URL`** is one configuration line so the app knows **which database on this computer** to use. It is not something you “search Google for.” You build it from your Postgres username, password (if any), and the database name `finance_analyzer` (or whatever you chose).
+- If all of this is still too much, ask someone technical for **one short session** with this README open, or use a local tech-support service. This repo does not include a double-click installer yet.
 
 ---
 
@@ -293,7 +295,7 @@ Default URL is still `http://localhost:3000` unless you change `PORT`.
 
 - **No login.** Anyone who can open `http://localhost:3000` on **your** machine can use the app. Use **localhost** only; do not expose the app to the public internet without extra protection.
 - Treat **`.env.local`** as private (it can hold passwords and API keys).
-- **`/api/debug/*`** is for development—do not expose it on the internet.
+- **`/api/debug/*`** is for development only. Do not expose it on the internet.
 
 ---
 
