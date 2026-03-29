@@ -115,6 +115,15 @@ export function CategorizationBlock({ yearMonth, onClassificationComplete }: Cat
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        {classifying && (
+          <p
+            className="mb-4 text-sm text-blue-900 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5"
+            role="status"
+            aria-live="polite"
+          >
+            {t("month.categorization_wait")}
+          </p>
+        )}
         {lowConfidenceCount > 0 && (
           <p className="text-sm text-amber-700 font-medium mb-4">
             {t("month.low_confidence")}: {lowConfidenceCount} transaction(s)

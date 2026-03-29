@@ -45,9 +45,18 @@ export function MonthDetailClient({ yearMonth }: MonthDetailClientProps) {
               disabled={classifying}
               className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
             >
-              {classifying ? "…" : t("month.run_categorization")}
+              {classifying ? t("month.categorization_running") : t("month.run_categorization")}
             </button>
           </div>
+          {classifying && (
+            <p
+              className="mt-3 text-sm text-blue-900 bg-white/70 border border-blue-200 rounded-xl px-3 py-2.5"
+              role="status"
+              aria-live="polite"
+            >
+              {t("month.categorization_wait")}
+            </p>
+          )}
         </div>
       )}
 
